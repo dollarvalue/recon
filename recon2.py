@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-# setup the constant
+# setup the constant 2nd Try
 
 _rg_glcode = 'RG_GLCODE'
 _rg_lineid = 'RG_LINEID'
