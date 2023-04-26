@@ -390,7 +390,7 @@ jpplresult['JP_KEY']=jpplresult['JP_KEY'].astype(str)
 jpplresult = jpplresult.sort_values(by=['JP_KEY'])
 
 jpplresult = jpplresult [jpplresult[['BAS_BAL','T24_BAL']].ne(0).any(1)]
-
+ 
 def check_bal (bal):
     if bal == 0:
         return 0
