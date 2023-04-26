@@ -91,7 +91,7 @@ rg_lineid = pd.read_excel (_setup, _rg_lineid)
 rg_jppllineid = pd.read_excel (_setup, _rg_jppllineid)
 rg_jplineid = pd.read_excel (_setup, _rg_jplineid)
 
-
+recon_rule = pd.read_excel (_setup, 'RECON_RULE')
 
 #offbs_ac = pd.read_excel ("OFFBS.xlsx")
 #ccy_map = pd.read_excel ("CCY_MAP.xlsx")
@@ -126,15 +126,11 @@ line_plbal = line_plbal.merge(rg_pllineid, how='left', on='LINEID')
 line_jpglbal = line_jpglbal.merge(rg_jplineid, how='left', on='LINEID')
 line_jpplbal = line_jpplbal.merge(rg_jppllineid, how='left', on='LINEID')
 
-
-
 print ('LINE ID WITHOUT MAP')
 nomap_linebal = line_glbal[['LINEID','CCY','Closing Balance LCY']][line_glbal['RECON GROUP']==np.nan]
 nomap_lineplbal = line_plbal[['LINEID','CCY','Closing Balance LCY']][line_plbal['RG_GROUP']==np.nan]
 nomap_linejpbal = line_jpglbal[['LINEID','CCY','Closing Balance LCY']][line_jpglbal['JP_GROUP']==np.nan]
 nomap_linejpplbal = line_jpplbal[['LINEID','CCY','Closing Balance LCY']][line_jpplbal['JP_GROUP']==np.nan]
-
-
 
 
 line_glbal['RECON GROUP'].replace(np.nan, 'MISSING', inplace=True)
@@ -203,9 +199,6 @@ offbs_bal['RG_KEY'] = offbs_bal['CCY']+'-'+offbs_bal['RG_GROUP']
 # merge offbs balance into GLBAL
 glbal_result = pd.concat([glbal_result, offbs_bal[['RG_KEY','TODAY_BALANCE']]], axis=0)
 
-
-
-
 def t24_sign_plbal (bal, profit_loss):
     if profit_loss in ('P'):
         if bal > 0:
@@ -240,8 +233,6 @@ plbal['JP_KEY']=plbal['CCY']+'-'+plbal['JP_GROUP']
 
 plbal_result = plbal[['RG_KEY','TODAY_BALANCE']].copy(deep=True)
 jpplbal_result = plbal[['JP_KEY','TODAY_BALANCE']].copy(deep=True)
-
-
 
 # DETAIL GL COMPARE
 detail_result = pd.DataFrame ({
@@ -414,49 +405,60 @@ def rec_result (diff):
 
 
 
-def apply_rec (df):
+def apply_rec (df, _recordset):
     df['BAS_HAS_BAL']=df.apply(lambda x: check_bal(x['BAS_BAL']), axis=1)
     df['STATUS']=df.apply(lambda x: rec_result(x['DIFF']), axis=1)
     df['FINDINGS']=''
+    df['CLASSIFICATION']=''
     # mark EXPECTED DIFF RECORDS
-    _expected_diff_RG = ['RG_37000']
+   
+   
+    for _ind, _row in recon_rule.loc[recon_rule['REPORT'] == _recordset].iterrows():
+        if _recordset == 'HKGL':
+            df.loc[df.RG_GROUP == _row ['RG_GROUP'], 'STATUS'] = _row['STATUS']
+            df.loc[df.RG_GROUP == _row ['RG_GROUP'], 'FINDINGS'] = _row['FINDINGS']
+            df.loc[df.RG_GROUP == _row ['RG_GROUP'], 'CLASSIFICATION'] = _row['CLASSIFICATION']
+        else:
+            df.loc[df.JP_GROUP == _row ['RG_GROUP'], 'STATUS'] = _row['STATUS']
+            df.loc[df.JP_GROUP == _row ['RG_GROUP'], 'FINDINGS'] = _row['FINDINGS']
+            df.loc[df.JP_GROUP == _row ['RG_GROUP'], 'CLASSIFICATION'] = _row['CLASSIFICATION']
 
-    _expected_diff_LCADV = ['RG_15800']
+#    _expected_diff_LCADV = ['RG_15800']
+#    _expected_diff_BC = ['RG_15700']    
+#    _expected_diff_RG = ['RG_37000']
 
-    _expected_diff_BC = ['RG_15700']    
-
-    if 'RG_GROUP' in df.columns:
-        for _RECORD in _expected_diff_RG:
-            df.loc[df.RG_GROUP == _RECORD, 'STATUS'] = 'EXPECTED DIFF' 
-            df.loc[df.RG_GROUP == _RECORD, 'FINDINGS'] = 'T24 EAC INCLUDE DAILY PL POSTING'
+#    if 'RG_GROUP' in df.columns:
+#        for _RECORD in _expected_diff_RG:
+#            df.loc[df.RG_GROUP == _RECORD, 'STATUS'] = 'EXPECTED DIFF' 
+#            df.loc[df.RG_GROUP == _RECORD, 'FINDINGS'] = 'T24 EAC INCLUDE DAILY PL POSTING'
         
-        for _RECORD in _expected_diff_LCADV:
-            df.loc[df.RG_GROUP == _RECORD, 'STATUS'] = 'EXPECTED DIFF'
-            df.loc[df.RG_GROUP == _RECORD, 'FINDINGS'] = 'SMILE LC BALANCE WONT BE REDUCED'
+#        for _RECORD in _expected_diff_LCADV:
+#            df.loc[df.RG_GROUP == _RECORD, 'STATUS'] = 'EXPECTED DIFF'
+#            df.loc[df.RG_GROUP == _RECORD, 'FINDINGS'] = 'SMILE LC BALANCE WONT BE REDUCED'
         
-        for _RECORD in _expected_diff_BC:
-            df.loc[df.RG_GROUP == _RECORD, 'STATUS'] = 'EXPECTED DIFF'
-            df.loc[df.RG_GROUP == _RECORD, 'FINDINGS'] = 'T24 CANT SEPARATE BB/BC'
+#        for _RECORD in _expected_diff_BC:
+#            df.loc[df.RG_GROUP == _RECORD, 'STATUS'] = 'EXPECTED DIFF'
+#            df.loc[df.RG_GROUP == _RECORD, 'FINDINGS'] = 'T24 CANT SEPARATE BB/BC'
 
 
 print ('WRITING EXCEL')
 
 writer = pd.ExcelWriter(_output, engine='xlsxwriter')
 
-apply_rec (result)
-apply_rec (detail_result)
-apply_rec (plresult)
-apply_rec (jpresult)
-apply_rec (jpplresult)
+apply_rec (result, 'HKGL')
+apply_rec (detail_result, 'HKGL.DETAL')
+apply_rec (plresult,  'HKPL')
+apply_rec (jpresult,  'JPGL')
+apply_rec (jpplresult,  'JPPL')
 
 
-result[['CCY','RG_GROUP','RG_KEY','ROOT GL DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS']].to_excel(writer, sheet_name ='BS-COMPARE')
-detail_result[['CCY','RG_GROUP', 'RD_GROUP','RD_KEY','Gl Ac Name','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS']].to_excel(writer, sheet_name = 'BS-DETAIL')
+result[['CCY','RG_GROUP','RG_KEY','ROOT GL DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='BS-COMPARE')
+detail_result[['CCY','RG_GROUP', 'RD_GROUP','RD_KEY','Gl Ac Name','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'BS-DETAIL')
 
-plresult[['CCY','RG_GROUP','RG_KEY','DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS']].to_excel(writer, sheet_name ='PL-COMPARE')
+plresult[['CCY','RG_GROUP','RG_KEY','DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='PL-COMPARE')
 
-jpresult[['CCY','JP_GROUP','JP_KEY','JP_DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS']].to_excel(writer, sheet_name ='JPBS-COMPARE')
-jpplresult[['CCY','JP_GROUP','JP_KEY','JP_DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS']].to_excel(writer, sheet_name ='JPPL-COMPARE')
+jpresult[['CCY','JP_GROUP','JP_KEY','JP_DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='JPBS-COMPARE')
+jpplresult[['CCY','JP_GROUP','JP_KEY','JP_DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='JPPL-COMPARE')
 
 glbal_result[glbal_result['TODAY_BALANCE'] != 0].to_excel(writer, sheet_name='GLBAL W OFFBS')
 glbal[glbal['TODAY_BALANCE'] !=0].to_excel(writer, sheet_name='GLBAL')
@@ -487,8 +489,8 @@ writer.close ()
 
 
 print ('WRITING DEAL DETAIL')
-writer = pd.ExcelWriter(_refoutput, engine='xlsxwriter')
-rawac[rawac['TODAY_BALANCE'] !=0].to_excel (writer, sheet_name='TBRAWACCT')
+#writer = pd.ExcelWriter(_refoutput, engine='xlsxwriter')
+#rawac[rawac['TODAY_BALANCE'] !=0].to_excel (writer, sheet_name='TBRAWACCT')
 writer.close ()
 
 print ('DONE')
