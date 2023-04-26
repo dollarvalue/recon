@@ -408,13 +408,14 @@ def rec_result (diff):
 def apply_rec (df, _recordset):
     df['BAS_HAS_BAL']=df.apply(lambda x: check_bal(x['BAS_BAL']), axis=1)
     df['STATUS']=df.apply(lambda x: rec_result(x['DIFF']), axis=1)
+    #df=df[df.STATUS == 'OTHER']
     df['FINDINGS']=''
     df['CLASSIFICATION']=''
     # mark EXPECTED DIFF RECORDS
    
    
     for _ind, _row in recon_rule.loc[recon_rule['REPORT'] == _recordset].iterrows():
-        if _recordset == 'HKGL':
+        if _recordset in ['HKGL','HKPL']:
             df.loc[df.RG_GROUP == _row ['RG_GROUP'], 'STATUS'] = _row['STATUS']
             df.loc[df.RG_GROUP == _row ['RG_GROUP'], 'FINDINGS'] = _row['FINDINGS']
             df.loc[df.RG_GROUP == _row ['RG_GROUP'], 'CLASSIFICATION'] = _row['CLASSIFICATION']
