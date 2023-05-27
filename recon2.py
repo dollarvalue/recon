@@ -11,24 +11,24 @@ _rg_plcode = 'RG_PLCODE'
 _rg_pllineid = 'RG_PLLINEID'
 _rg_jppllineid = 'RG_PLLINEID_JP'
 
-_t24_hkglbal = 'LINE_BAL_SUM_HKGL.csv'
-_t24_hkplbal = 'LINE_BAL_SUM_HKPL.csv'
-_t24_jpglbal = 'LINE_BAL_SUM_JPGL.csv'
-_t24_jpplbal = 'LINE_BAL_SUM_JPPL.csv'
+_t24_hkglbal = '../LINE_BAL_SUM_HKGL.csv'
+_t24_hkplbal = '../LINE_BAL_SUM_HKPL.csv'
+_t24_jpglbal = '../LINE_BAL_SUM_JPGL.csv'
+_t24_jpplbal = '../LINE_BAL_SUM_JPPL.csv'
 
-_output = 'RECON_RESULT.xlsx'
-_refoutput = 'RECON_REF.xlsx'
+_output = '../RECON_RESULT.xlsx'
+_refoutput = '../RECON_REF.xlsx'
 _setup = 'RECON_SETUP.xlsx'
 
 
 # input file
 
-_rawac = 'TBRAWACCOUNT.csv'
-_plbal = 'TBRAW_PLBAL.csv'
-_glbal = 'TBRAW_GLBAL.csv'
-_placn = 'TBRAW_PLACN.csv'
-_ccymap = 'TBRAWCCY_DL.csv'
-_glacn = 'Tbrawglacn_20220930.xls'
+_rawac = '../TBRAWACCOUNT.csv'
+_plbal = '../TBRAW_PLBAL.csv'
+_glbal = '../TBRAW_GLBAL.csv'
+_placn = '../TBRAW_PLACN.csv'
+_ccymap = '../TBRAWCCY_DL.csv'
+_glacn = '../Tbrawglacn_20220930.xls'
 
 
 # LIST OF GLCODE TO BE EXCLUDE 
@@ -127,17 +127,17 @@ line_jpglbal = line_jpglbal.merge(rg_jplineid, how='left', on='LINEID')
 line_jpplbal = line_jpplbal.merge(rg_jppllineid, how='left', on='LINEID')
 
 print ('LINE ID WITHOUT MAP')
-nomap_linebal = line_glbal[['LINEID','CCY','Closing Balance LCY']][line_glbal['RECON GROUP']==np.nan]
+nomap_linebal = line_glbal[['LINEID','CCY','Closing Balance LCY']][line_glbal['RG_GROUP']==np.nan]
 nomap_lineplbal = line_plbal[['LINEID','CCY','Closing Balance LCY']][line_plbal['RG_GROUP']==np.nan]
 nomap_linejpbal = line_jpglbal[['LINEID','CCY','Closing Balance LCY']][line_jpglbal['JP_GROUP']==np.nan]
 nomap_linejpplbal = line_jpplbal[['LINEID','CCY','Closing Balance LCY']][line_jpplbal['JP_GROUP']==np.nan]
 
 
-line_glbal['RECON GROUP'].replace(np.nan, 'MISSING', inplace=True)
+line_glbal['RG_GROUP'].replace(np.nan, 'MISSING', inplace=True)
 line_jpglbal['JP_GROUP'].replace(np.nan, 'MISSING', inplace=True)
 
 line_glbal['RD'].replace(np.nan, 'MISSING', inplace=True)
-line_glbal['RG_KEY']=line_glbal['CCY']+'-'+line_glbal['RECON GROUP']
+line_glbal['RG_KEY']=line_glbal['CCY']+'-'+line_glbal['RG_GROUP']
 line_glbal['RD_KEY']=line_glbal['CCY']+'-'+line_glbal['RD']
 line_jpglbal['JP_KEY']=line_jpglbal['CCY']+'-'+line_jpglbal['JP_GROUP']
 
@@ -161,6 +161,8 @@ glbal ['JP_KEY']=glbal['CCY']+'-'+glbal['JP_GROUP']
 
 glbal_result = glbal[['RG_KEY','TODAY_BALANCE']].copy(deep=True)
 jpglbal_result = glbal[['JP_KEY','TODAY_BALANCE']].copy(deep=True)
+
+
 
 # merge off balance sheet to GLBAL
 rawac['GL_CODE']=rawac['GL_CODE'].astype(str).str.zfill(5)
@@ -189,6 +191,7 @@ def t24_sign_bal (bal, asset_liab, account_type):
             return -bal
     
 rawac['TODAY_BALANCE'] = rawac.apply(lambda x: t24_sign_bal(x['LEDGER_BALANCE'], x['Asset Liab Flag'], x['Account Type']), axis=1)
+rawac['RG_KEY']=rawac['CCY']+'-'+rawac['RG_GROUP']
 
 # select offbs account only
 offbs = ['X','Y']
@@ -442,18 +445,73 @@ def apply_rec (df, _recordset):
 #            df.loc[df.RG_GROUP == _RECORD, 'FINDINGS'] = 'T24 CANT SEPARATE BB/BC'
 
 
-print ('WRITING EXCEL')
-
-writer = pd.ExcelWriter(_output, engine='xlsxwriter')
-
 apply_rec (result, 'HKGL')
 apply_rec (detail_result, 'HKGL.DETAL')
 apply_rec (plresult,  'HKPL')
 apply_rec (jpresult,  'JPGL')
 apply_rec (jpplresult,  'JPPL')
 
+# create a compare dataframe with details 
+consol_result = pd.DataFrame(data=None, columns=result.columns)
+
+# add column to consol_result dataframe
+consol_result = result
+
+consol_result['TYPE']="T"
+consol_result['LINEID']=""
+consol_result['GL_CODE']=""
+
+consol_detail = pd.DataFrame(data=None)
+consol_bas_detail = pd.DataFrame(data=None)
+
+
+consol_detail [['CCY','RG_GROUP','RG_KEY','LINEID','LINE DESC','T24_BAL']]= line_glbal [['CCY','RG_GROUP','RG_KEY','LINEID','LINE DESC','Closing Balance LCY']]
+# add a sequence no group by RG_KEY
+consol_detail['SEQ']=consol_detail.groupby(['RG_KEY'])['RG_KEY'].cumcount()+1
+
+
+#consol_bas_detail [['CCY','RG_GROUP','RG_KEY','GL_CODE','GL DESC','ROOT GL DESC','BAS_BAL']]= rawac [['CCY','RG_GROUP','RG_KEY','GL_CODE','Gl Ac Name','ROOT GL DESC','TODAY_BALANCE']]
+
+consol_bas_detail [['CCY','RG_GROUP','RG_KEY','GL_CODE','GL DESC','ROOT GL DESC','BAS_BAL']]= glbal [['CCY','RG_GROUP','RG_KEY','GL_CODE','Gl Ac Name','ROOT GL DESC','TODAY_BALANCE']]
+
+# select ccy, rg_group from rawac where asset liab flag is off balance
+
+offbs_glbal = pd.DataFrame(data=None)
+
+# get off balance sheet balance
+offbs_glbal[['CCY','RG_GROUP','RG_KEY','GL_CODE','GL DESC','ROOT GL DESC','BAS_BAL']] = rawac[['CCY','RG_GROUP','RG_KEY','GL_CODE','Gl Ac Name','ROOT GL DESC','TODAY_BALANCE']].loc[rawac['Asset Liab Flag'].isin(offbs)]
+offbs_glbal = offbs_glbal.groupby(['CCY','RG_GROUP','RG_KEY','GL_CODE','GL DESC','ROOT GL DESC']).sum().reset_index()
+
+# group obs from rawac 
+
+consol_bas_detail = pd.concat([consol_bas_detail, offbs_glbal], axis=0)
+
+# remove rows with zero BAS_BAL from consol_bas_detail
+consol_bas_detail = consol_bas_detail[consol_bas_detail['BAS_BAL'] != 0]
+
+# add a sequence no group by RG_KEY
+consol_bas_detail['SEQ']=consol_bas_detail.groupby(['RG_KEY'])['RG_KEY'].cumcount()+1
+
+# merge consol_detail and consol_bas_detail
+
+consol_detail = consol_detail.merge(consol_bas_detail, how='outer', on=['CCY','RG_GROUP','RG_KEY','SEQ'])
+
+consol_detail['TYPE']="D"
+
+consol_result = pd.concat ([consol_result, consol_detail], axis=0) 
+
+# sort consol_result by RG_KEY and TYPE
+consol_result = consol_result.sort_values(by=['RG_KEY','TYPE'])
+
+print ('WRITING EXCEL')
+
+writer = pd.ExcelWriter(_output, engine='xlsxwriter')
+
 
 result[['CCY','RG_GROUP','RG_KEY','ROOT GL DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='BS-COMPARE')
+
+consol_result[['CCY','RG_GROUP','RG_KEY','ROOT GL DESC','TYPE','SEQ','GL_CODE','GL DESC','BAS_BAL','LINEID','LINE DESC','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'BS-CONSOL')
+
 detail_result[['CCY','RG_GROUP', 'RD_GROUP','RD_KEY','Gl Ac Name','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'BS-DETAIL')
 
 plresult[['CCY','RG_GROUP','RG_KEY','DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='PL-COMPARE')
@@ -488,11 +546,10 @@ plbal.to_excel (writer, sheet_name='PLBAL')
 
 writer.close ()
 
-
-print ('WRITING DEAL DETAIL')
-#writer = pd.ExcelWriter(_refoutput, engine='xlsxwriter')
-#rawac[rawac['TODAY_BALANCE'] !=0].to_excel (writer, sheet_name='TBRAWACCT')
-writer.close ()
+#print ('WRITING DEAL DETAIL')
+#detail_writer = pd.ExcelWriter(_refoutput, engine='xlsxwriter')
+#rawac[rawac['TODAY_BALANCE'] !=0].to_excel (detail_writer, sheet_name='TBRAWACCT')
+#detail_writer.close ()
 
 print ('DONE')
 
