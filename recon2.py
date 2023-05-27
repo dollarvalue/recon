@@ -497,7 +497,7 @@ consol_bas_detail['SEQ']=consol_bas_detail.groupby(['RG_KEY'])['RG_KEY'].cumcoun
 consol_detail = consol_detail.merge(consol_bas_detail, how='outer', on=['CCY','RG_GROUP','RG_KEY','SEQ'])
 
 consol_detail['TYPE']="D"
-
+ 
 consol_result = pd.concat ([consol_result, consol_detail], axis=0) 
 
 # sort consol_result by RG_KEY and TYPE
