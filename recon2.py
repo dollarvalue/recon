@@ -32,8 +32,8 @@ _glacn = '../Tbrawglacn_20220930.xls'
 
 
 # LIST OF GLCODE TO BE EXCLUDE 
-exclude_ac = ['09501','09502','09503','09505']
-
+#exclude_ac = ['09501','09502','09503','09505']
+exclude_ac = []
 
 def readlinebal (prefix, filename):
     df = pd.read_csv (filename, skiprows=1)
@@ -503,6 +503,39 @@ consol_result = pd.concat ([consol_result, consol_detail], axis=0)
 # sort consol_result by RG_KEY and TYPE
 consol_result = consol_result.sort_values(by=['RG_KEY','TYPE'])
 
+
+# pl consol result
+
+consol_plresult = pd.DataFrame(data=None, columns=plresult.columns)
+consol_plresult = plresult
+consol_plresult['TYPE']="T"
+consol_plresult['LINEID']=""
+consol_plresult['PL_CODE']=""
+
+consol_pldetail = pd.DataFrame(data=None)
+consol_bas_pldetail = pd.DataFrame(data=None)
+
+consol_pldetail [['CCY','RG_GROUP','RG_KEY','LINEID','LINE DESC','T24_BAL']]= line_plbal [['CCY','RG_GROUP','RG_KEY','LINEID','LINE DESC','Closing Balance LCY']]
+# add a sequence no group by RG_KEY
+consol_pldetail['SEQ']=consol_pldetail.groupby(['RG_KEY'])['RG_KEY'].cumcount()+1
+
+consol_bas_pldetail [['CCY','RG_GROUP','RG_KEY','PL_CODE','PL DESC','DESC','BAS_BAL']]= plbal [['CCY','RG_GROUP','RG_KEY','PL_CODE','PL_AC_NAME','DESC','TODAY_BALANCE']]
+# remove rows with zero BAS_BAL from consol_bas_detail
+consol_bas_pldetail = consol_bas_pldetail[consol_bas_pldetail['BAS_BAL'] != 0]
+
+# add a sequence no group by RG_KEY
+consol_bas_pldetail['SEQ']=consol_bas_pldetail.groupby(['RG_KEY'])['RG_KEY'].cumcount()+1
+
+
+consol_pldetail = consol_pldetail.merge(consol_bas_pldetail, how='outer', on=['CCY','RG_GROUP','RG_KEY','SEQ'])
+
+consol_pldetail['TYPE']="D"
+ 
+consol_plresult = pd.concat ([consol_plresult, consol_pldetail], axis=0) 
+
+# sort consol_result by RG_KEY and TYPE
+consol_plresult = consol_plresult.sort_values(by=['RG_KEY','TYPE'])
+
 print ('WRITING EXCEL')
 
 writer = pd.ExcelWriter(_output, engine='xlsxwriter')
@@ -515,6 +548,9 @@ consol_result[['CCY','RG_GROUP','RG_KEY','ROOT GL DESC','TYPE','SEQ','GL_CODE','
 detail_result[['CCY','RG_GROUP', 'RD_GROUP','RD_KEY','Gl Ac Name','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'BS-DETAIL')
 
 plresult[['CCY','RG_GROUP','RG_KEY','DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='PL-COMPARE')
+
+consol_plresult[['CCY','RG_GROUP','RG_KEY','DESC','TYPE','SEQ','PL_CODE','PL DESC','BAS_BAL','LINEID','LINE DESC','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'PL-CONSOL')
+
 
 jpresult[['CCY','JP_GROUP','JP_KEY','JP_DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='JPBS-COMPARE')
 jpplresult[['CCY','JP_GROUP','JP_KEY','JP_DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='JPPL-COMPARE')
