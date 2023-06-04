@@ -453,16 +453,28 @@ apply_rec (jpplresult,  'JPPL')
 
 # create a compare dataframe with details 
 consol_result = pd.DataFrame(data=None, columns=result.columns)
+consol_jpresult = pd.DataFrame(data=None, columns=jpresult.columns)
 
 # add column to consol_result dataframe
 consol_result = result
+consol_jpresult = jpresult
+
 
 consol_result['TYPE']="T"
 consol_result['LINEID']=""
 consol_result['GL_CODE']=""
 
+
+consol_jpresult['TYPE']="T"
+consol_jpresult['LINEID']=""
+consol_jpresult['GL_CODE']=""
+
+
 consol_detail = pd.DataFrame(data=None)
 consol_bas_detail = pd.DataFrame(data=None)
+
+consol_jpdetail = pd.DataFrame(data=None)
+consol_bas_jpdetail = pd.DataFrame(data=None)
 
 
 consol_detail [['CCY','RG_GROUP','RG_KEY','LINEID','LINE DESC','T24_BAL']]= line_glbal [['CCY','RG_GROUP','RG_KEY','LINEID','LINE DESC','Closing Balance LCY']]
@@ -470,9 +482,18 @@ consol_detail [['CCY','RG_GROUP','RG_KEY','LINEID','LINE DESC','T24_BAL']]= line
 consol_detail['SEQ']=consol_detail.groupby(['RG_KEY'])['RG_KEY'].cumcount()+1
 
 
+consol_jpdetail [['CCY','JP_GROUP','JP_KEY','LINEID','LINE DESC','T24_BAL']]= line_jpglbal [['CCY','JP_GROUP','JP_KEY','LINEID','JP_DESC','Closing Balance LCY']]
+# add a sequence no group by RG_KEY
+consol_jpdetail['SEQ']=consol_jpdetail.groupby(['JP_KEY'])['JP_KEY'].cumcount()+1
+
+
+
 #consol_bas_detail [['CCY','RG_GROUP','RG_KEY','GL_CODE','GL DESC','ROOT GL DESC','BAS_BAL']]= rawac [['CCY','RG_GROUP','RG_KEY','GL_CODE','Gl Ac Name','ROOT GL DESC','TODAY_BALANCE']]
 
 consol_bas_detail [['CCY','RG_GROUP','RG_KEY','GL_CODE','GL DESC','ROOT GL DESC','BAS_BAL']]= glbal [['CCY','RG_GROUP','RG_KEY','GL_CODE','Gl Ac Name','ROOT GL DESC','TODAY_BALANCE']]
+
+consol_bas_jpdetail [['CCY','JP_GROUP','JP_KEY','GL_CODE','GL DESC','ROOT GL DESC','BAS_BAL']]= glbal [['CCY','JP_GROUP','JP_KEY','GL_CODE','Gl Ac Name','ROOT GL DESC','TODAY_BALANCE']]
+
 
 # select ccy, rg_group from rawac where asset liab flag is off balance
 
@@ -488,24 +509,30 @@ consol_bas_detail = pd.concat([consol_bas_detail, offbs_glbal], axis=0)
 
 # remove rows with zero BAS_BAL from consol_bas_detail
 consol_bas_detail = consol_bas_detail[consol_bas_detail['BAS_BAL'] != 0]
+consol_bas_jpdetail = consol_bas_jpdetail[consol_bas_jpdetail['BAS_BAL'] != 0]
 
 # add a sequence no group by RG_KEY
 consol_bas_detail['SEQ']=consol_bas_detail.groupby(['RG_KEY'])['RG_KEY'].cumcount()+1
+consol_bas_jpdetail['SEQ']=consol_bas_jpdetail.groupby(['JP_KEY'])['JP_KEY'].cumcount()+1
+
 
 # merge consol_detail and consol_bas_detail
 
 consol_detail = consol_detail.merge(consol_bas_detail, how='outer', on=['CCY','RG_GROUP','RG_KEY','SEQ'])
+consol_jpdetail = consol_jpdetail.merge(consol_bas_jpdetail, how='outer', on=['CCY','JP_GROUP','JP_KEY','SEQ'])
 
 consol_detail['TYPE']="D"
+consol_jpdetail['TYPE']="D"
  
 consol_result = pd.concat ([consol_result, consol_detail], axis=0) 
+consol_jpresult = pd.concat ([consol_jpresult, consol_jpdetail], axis=0) 
 
 # sort consol_result by RG_KEY and TYPE
 consol_result = consol_result.sort_values(by=['RG_KEY','TYPE'])
+consol_jpresult = consol_jpresult.sort_values(by=['JP_KEY','TYPE'])
 
 
 # pl consol result
-
 consol_plresult = pd.DataFrame(data=None, columns=plresult.columns)
 consol_plresult = plresult
 consol_plresult['TYPE']="T"
@@ -525,16 +552,44 @@ consol_bas_pldetail = consol_bas_pldetail[consol_bas_pldetail['BAS_BAL'] != 0]
 
 # add a sequence no group by RG_KEY
 consol_bas_pldetail['SEQ']=consol_bas_pldetail.groupby(['RG_KEY'])['RG_KEY'].cumcount()+1
-
-
 consol_pldetail = consol_pldetail.merge(consol_bas_pldetail, how='outer', on=['CCY','RG_GROUP','RG_KEY','SEQ'])
-
 consol_pldetail['TYPE']="D"
- 
 consol_plresult = pd.concat ([consol_plresult, consol_pldetail], axis=0) 
 
 # sort consol_result by RG_KEY and TYPE
 consol_plresult = consol_plresult.sort_values(by=['RG_KEY','TYPE'])
+
+
+
+# pl consol result
+consol_jpplresult = pd.DataFrame(data=None, columns=jpplresult.columns)
+consol_jpplresult = jpplresult
+consol_jpplresult['TYPE']="T"
+consol_jpplresult['LINEID']=""
+consol_jpplresult['PL_CODE']=""
+
+consol_jppldetail = pd.DataFrame(data=None)
+consol_bas_jppldetail = pd.DataFrame(data=None)
+
+consol_jppldetail [['CCY','JP_GROUP','JP_KEY','LINEID','LINE DESC','T24_BAL']]= line_jpplbal [['CCY','JP_GROUP','JP_KEY','LINEID','JP_DESC','Closing Balance LCY']]
+# add a sequence no group by RG_KEY
+consol_jppldetail['SEQ']=consol_jppldetail.groupby(['JP_KEY'])['JP_KEY'].cumcount()+1
+
+consol_bas_jppldetail [['CCY','JP_GROUP','JP_KEY','PL_CODE','PL DESC','DESC','BAS_BAL']]= plbal [['CCY','JP_GROUP','JP_KEY','PL_CODE','PL_AC_NAME','DESC','TODAY_BALANCE']]
+# remove rows with zero BAS_BAL from consol_bas_detail
+consol_bas_jppldetail = consol_bas_jppldetail[consol_bas_jppldetail['BAS_BAL'] != 0]
+
+# add a sequence no group by RG_KEY
+consol_bas_jppldetail['SEQ']=consol_bas_jppldetail.groupby(['JP_KEY'])['JP_KEY'].cumcount()+1
+consol_jppldetail = consol_jppldetail.merge(consol_bas_jppldetail, how='outer', on=['CCY','JP_GROUP','JP_KEY','SEQ'])
+consol_jppldetail['TYPE']="D"
+consol_jpplresult = pd.concat ([consol_jpplresult, consol_jppldetail], axis=0) 
+
+# sort consol_result by RG_KEY and TYPE
+consol_jpplresult = consol_jpplresult.sort_values(by=['JP_KEY','TYPE'])
+
+
+
 
 print ('WRITING EXCEL')
 
@@ -542,18 +597,16 @@ writer = pd.ExcelWriter(_output, engine='xlsxwriter')
 
 
 result[['CCY','RG_GROUP','RG_KEY','ROOT GL DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='BS-COMPARE')
-
 consol_result[['CCY','RG_GROUP','RG_KEY','ROOT GL DESC','TYPE','SEQ','GL_CODE','GL DESC','BAS_BAL','LINEID','LINE DESC','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'BS-CONSOL')
-
 detail_result[['CCY','RG_GROUP', 'RD_GROUP','RD_KEY','Gl Ac Name','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'BS-DETAIL')
-
 plresult[['CCY','RG_GROUP','RG_KEY','DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='PL-COMPARE')
-
 consol_plresult[['CCY','RG_GROUP','RG_KEY','DESC','TYPE','SEQ','PL_CODE','PL DESC','BAS_BAL','LINEID','LINE DESC','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'PL-CONSOL')
 
-
 jpresult[['CCY','JP_GROUP','JP_KEY','JP_DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='JPBS-COMPARE')
+consol_jpresult[['CCY','JP_GROUP','JP_KEY','ROOT GL DESC','TYPE','SEQ','GL_CODE','GL DESC','BAS_BAL','LINEID','LINE DESC','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'JPBS-CONSOL')
+
 jpplresult[['CCY','JP_GROUP','JP_KEY','JP_DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='JPPL-COMPARE')
+consol_jpplresult[['CCY','JP_GROUP','JP_KEY','DESC','TYPE','SEQ','PL_CODE','PL DESC','BAS_BAL','LINEID','LINE DESC','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'JPPL-CONSOL')
 
 glbal_result[glbal_result['TODAY_BALANCE'] != 0].to_excel(writer, sheet_name='GLBAL W OFFBS')
 glbal[glbal['TODAY_BALANCE'] !=0].to_excel(writer, sheet_name='GLBAL')
