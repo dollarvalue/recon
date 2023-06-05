@@ -291,7 +291,7 @@ result['DIFF']=result['BAS_BAL']-result['T24_BAL']
 result = result.sort_values(by=['RG_KEY'])
 
 # filter out rows that balance is zero
-result = result [result[['BAS_BAL','T24_BAL']].ne(0).any(1)]
+# result = result [result[['BAS_BAL','T24_BAL']].ne(0).any(1)]
 
 # JPGL COMPARE
 
@@ -329,7 +329,7 @@ jpresult['DIFF']=jpresult['BAS_BAL']-jpresult['T24_BAL']
 jpresult['JP_KEY']=jpresult['JP_KEY'].astype(str)
 jpresult = jpresult.sort_values(by=['JP_KEY'])
 
-jpresult = jpresult [jpresult[['BAS_BAL','T24_BAL']].ne(0).any(1)]
+#jpresult = jpresult [jpresult[['BAS_BAL','T24_BAL']].ne(0).any(1)]
 
 # PL COMPARE
 plresult = pd.DataFrame({
@@ -361,7 +361,7 @@ plresult['DIFF']=plresult['BAS_BAL']-plresult['T24_BAL']
 plresult['RG_KEY']=plresult['RG_KEY'].astype(str)
 plresult = plresult.sort_values(by=['RG_KEY'])
 
-plresult = plresult [plresult[['BAS_BAL','T24_BAL']].ne(0).any(1)]
+#plresult = plresult [plresult[['BAS_BAL','T24_BAL']].ne(0).any(1)]
 
 # JPPL COMPARE
 
@@ -392,7 +392,7 @@ jpplresult['DIFF']=jpplresult['BAS_BAL']-jpplresult['T24_BAL']
 jpplresult['JP_KEY']=jpplresult['JP_KEY'].astype(str)
 jpplresult = jpplresult.sort_values(by=['JP_KEY'])
 
-jpplresult = jpplresult [jpplresult[['BAS_BAL','T24_BAL']].ne(0).any(1)]
+#jpplresult = jpplresult [jpplresult[['BAS_BAL','T24_BAL']].ne(0).any(1)]
  
 def check_bal (bal):
     if bal == 0:
@@ -531,6 +531,14 @@ consol_jpresult = pd.concat ([consol_jpresult, consol_jpdetail], axis=0)
 consol_result = consol_result.sort_values(by=['RG_KEY','TYPE'])
 consol_jpresult = consol_jpresult.sort_values(by=['JP_KEY','TYPE'])
 
+# add usd equivalent column to BAS_BAL and T24_BAL
+consol_result = consol_result.merge (ccy_map[['CCY','TTM_RATE_VS_USD']], how='left', on=['CCY'])
+consol_result['BAS_USD'] = consol_result['BAS_BAL'] / consol_result['TTM_RATE_VS_USD']
+consol_result['T24_USD'] = consol_result['T24_BAL'] / consol_result['TTM_RATE_VS_USD']
+
+consol_jpresult = consol_jpresult.merge (ccy_map[['CCY','TTM_RATE_VS_USD']], how='left', on=['CCY'])
+consol_jpresult['BAS_USD'] = consol_jpresult['BAS_BAL'] / consol_jpresult['TTM_RATE_VS_USD']
+consol_jpresult['T24_USD'] = consol_jpresult['T24_BAL'] / consol_jpresult['TTM_RATE_VS_USD']
 
 # pl consol result
 consol_plresult = pd.DataFrame(data=None, columns=plresult.columns)
@@ -559,7 +567,9 @@ consol_plresult = pd.concat ([consol_plresult, consol_pldetail], axis=0)
 # sort consol_result by RG_KEY and TYPE
 consol_plresult = consol_plresult.sort_values(by=['RG_KEY','TYPE'])
 
-
+consol_plresult = consol_plresult.merge (ccy_map[['CCY','TTM_RATE_VS_USD']], how='left', on=['CCY'])
+consol_plresult['BAS_USD'] = consol_plresult['BAS_BAL'] / consol_plresult['TTM_RATE_VS_USD']
+consol_plresult['T24_USD'] = consol_plresult['T24_BAL'] / consol_plresult['TTM_RATE_VS_USD']
 
 # pl consol result
 consol_jpplresult = pd.DataFrame(data=None, columns=jpplresult.columns)
@@ -588,6 +598,9 @@ consol_jpplresult = pd.concat ([consol_jpplresult, consol_jppldetail], axis=0)
 # sort consol_result by RG_KEY and TYPE
 consol_jpplresult = consol_jpplresult.sort_values(by=['JP_KEY','TYPE'])
 
+consol_jpplresult = consol_jpplresult.merge (ccy_map[['CCY','TTM_RATE_VS_USD']], how='left', on=['CCY'])
+consol_jpplresult['BAS_USD'] = consol_jpplresult['BAS_BAL'] / consol_jpplresult['TTM_RATE_VS_USD']
+consol_jpplresult['T24_USD'] = consol_jpplresult['T24_BAL'] / consol_jpplresult['TTM_RATE_VS_USD']
 
 
 
@@ -595,18 +608,27 @@ print ('WRITING EXCEL')
 
 writer = pd.ExcelWriter(_output, engine='xlsxwriter')
 
+# filter out rows that balance is zero
+result = result [result[['BAS_BAL','T24_BAL']].ne(0).any(1)]
+jpresult = jpresult [jpresult[['BAS_BAL','T24_BAL']].ne(0).any(1)]
+plresult = plresult [plresult[['BAS_BAL','T24_BAL']].ne(0).any(1)]
+jpplresult = jpplresult [jpplresult[['BAS_BAL','T24_BAL']].ne(0).any(1)]
+
+
 
 result[['CCY','RG_GROUP','RG_KEY','ROOT GL DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='BS-COMPARE')
-consol_result[['CCY','RG_GROUP','RG_KEY','ROOT GL DESC','TYPE','SEQ','GL_CODE','GL DESC','BAS_BAL','LINEID','LINE DESC','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'BS-CONSOL')
+consol_result[['CCY','RG_GROUP','RG_KEY','ROOT GL DESC','TYPE','SEQ','GL_CODE','GL DESC','TTM_RATE_VS_USD','BAS_BAL','BAS_USD','LINEID','LINE DESC','T24_BAL','T24_USD','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'BS-CONSOL')
+
 detail_result[['CCY','RG_GROUP', 'RD_GROUP','RD_KEY','Gl Ac Name','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'BS-DETAIL')
+
 plresult[['CCY','RG_GROUP','RG_KEY','DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='PL-COMPARE')
-consol_plresult[['CCY','RG_GROUP','RG_KEY','DESC','TYPE','SEQ','PL_CODE','PL DESC','BAS_BAL','LINEID','LINE DESC','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'PL-CONSOL')
+consol_plresult[['CCY','RG_GROUP','RG_KEY','DESC','TYPE','SEQ','PL_CODE','PL DESC','TTM_RATE_VS_USD','BAS_BAL','BAS_USD','LINEID','LINE DESC','T24_BAL','T24_USD','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'PL-CONSOL')
 
 jpresult[['CCY','JP_GROUP','JP_KEY','JP_DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='JPBS-COMPARE')
-consol_jpresult[['CCY','JP_GROUP','JP_KEY','ROOT GL DESC','TYPE','SEQ','GL_CODE','GL DESC','BAS_BAL','LINEID','LINE DESC','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'JPBS-CONSOL')
+consol_jpresult[['CCY','JP_GROUP','JP_KEY','ROOT GL DESC','TYPE','SEQ','GL_CODE','GL DESC','TTM_RATE_VS_USD','BAS_BAL','BAS_USD','LINEID','LINE DESC','T24_BAL','T24_USD','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'JPBS-CONSOL')
 
 jpplresult[['CCY','JP_GROUP','JP_KEY','JP_DESC','BAS_BAL','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name ='JPPL-COMPARE')
-consol_jpplresult[['CCY','JP_GROUP','JP_KEY','DESC','TYPE','SEQ','PL_CODE','PL DESC','BAS_BAL','LINEID','LINE DESC','T24_BAL','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'JPPL-CONSOL')
+consol_jpplresult[['CCY','JP_GROUP','JP_KEY','DESC','TYPE','SEQ','PL_CODE','PL DESC','TTM_RATE_VS_USD','BAS_BAL','BAS_USD','LINEID','LINE DESC','T24_BAL','T24_USD','DIFF','WS','BAS_HAS_BAL','STATUS','FINDINGS','CLASSIFICATION']].to_excel(writer, sheet_name = 'JPPL-CONSOL')
 
 glbal_result[glbal_result['TODAY_BALANCE'] != 0].to_excel(writer, sheet_name='GLBAL W OFFBS')
 glbal[glbal['TODAY_BALANCE'] !=0].to_excel(writer, sheet_name='GLBAL')
@@ -632,6 +654,7 @@ rg_jppllineid.to_excel (writer, sheet_name='JPPL_RG_LINEID')
 glacn.to_excel (writer, sheet_name='GLACN')
 placn.to_excel (writer, sheet_name='PLACN')
 plbal.to_excel (writer, sheet_name='PLBAL')
+ccy_map.to_excel (writer, sheet_name='CCY')
 
 writer.close ()
 
