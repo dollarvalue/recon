@@ -658,6 +658,7 @@ ccy_map.to_excel (writer, sheet_name='CCY')
 
 writer.close ()
 
+
 #print ('WRITING DEAL DETAIL')
 #detail_writer = pd.ExcelWriter(_refoutput, engine='xlsxwriter')
 #rawac[rawac['TODAY_BALANCE'] !=0].to_excel (detail_writer, sheet_name='TBRAWACCT')
